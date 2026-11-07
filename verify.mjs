@@ -116,9 +116,9 @@ await t('locale ja-JP で日本語', async () => { expect(await p.evaluate(() =>
 await t('privacy.html へのリンクが押せる高さ', async () => {
   await p.click('#bHow'); const r = await p.evaluate(() => { const a = document.querySelector('#howBody a'); return { h: a.getBoundingClientRect().height, href: a.getAttribute('href') } }); await p.click('#howBtn'); expect(r.h >= 38 && r.href === 'privacy.html', JSON.stringify(r))
 })
-await t('?v= がすべて3（index.html の script・og・game.js の import と画像）', async () => {
+await t('?v= がそろっている（index.html の script・og・game.js の import と画像）', async () => {
   const r = await p.evaluate(async () => { const h = await (await fetch('index.html')).text(), g = await (await fetch('game.js')).text(); const vs = [...h.matchAll(/\.(?:js|webp|png)\?v=(\d+)/g), ...g.matchAll(/\.js\?v=(\d+)/g), ...g.matchAll(/const V = '\?v=(\d+)'/g)].map(m => m[1]); return [...new Set(vs)] })
-  expect(r.length === 1 && r[0] === '3', JSON.stringify(r)); return r
+  expect(r.length === 1, JSON.stringify(r)); return r
 })
 await p.evaluate(() => { HC.dbg.pause(true); localStorage.setItem('jh_tut_i', '1'); localStorage.setItem('jh_tut', '1'); localStorage.setItem('jh_played', '1') })
 const fresh = (seed, guest, o = {}) => p.evaluate(([s, g, o]) => { HC.start(s, { skipIntro: true, guest: g, ...o }); return true }, [seed, guest, o])
@@ -187,7 +187,7 @@ await t('[時間] 制限時間は読む時間より長く、ボトルの段が�
     for (const tier of [0, 1, 2, 3]) { HC.start(12, { skipIntro: true, guest: 'g2' }); for (let i = 0; i < 300; i++) { HC.dbg.step(5); if (HC.state().phase === 'turn' && HC.state().mode === 'play') break } const t = HC.G.tb; t.tier = tier; const s = HC.state(); HC.G.tb.choices = null; HC.setLang('ja'); out.push({ tier, lim: +HC.state().limit.toFixed(2), line: read(s.line) }) }
     return { out, bar: !!document.querySelector('#timer'), hand: [...document.querySelectorAll('#hand *')].some(e => /scaleX/.test(e.style.transform)) }
   })
-  expect(!r.bar && !r.hand, 'bar'); for (const o of r.out) expect(o.lim >= o.line + 1.5 && o.lim <= 9, JSON.stringify(o))
+  expect(!r.bar && !r.hand, 'bar'); for (const o of r.out) expect(o.lim >= o.line + 1.5 && o.lim <= 16, JSON.stringify(o))
   expect(r.out[0].lim > r.out[3].lim, JSON.stringify(r.out)); return r.out.map(o => o.lim)
 })
 await t('[時間] グラスの泡が減っていき、消えた瞬間に無言扱い（機嫌が下がり冷めた反応）', async () => {

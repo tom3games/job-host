@@ -2,7 +2,7 @@
 // v3: 客の本音（聞く・笑い・褒め・気遣い・そっと）は毎回くじ。台詞は客同士で共通なので、当たりは卓の持ち物としぐさを読まないと分からない
 //     返事には制限時間（グラスの泡が消えるまで）。会話の途中にくじで事件が割り込む
 // 描画は Canvas 2D、時間は固定60Hz（performance.now で数える）
-import { drawPayslip, totals } from './payslip.js?v=3'
+import { drawPayslip, totals } from './payslip.js?v=4'
 window.__jsUp = true
 const D = window.HD, T = window.HT
 const $ = s => document.querySelector(s)
@@ -15,16 +15,16 @@ const len = s => [...s].length
 function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
 
 // ---------- 釣り合いの数字（sim.mjs で確かめる）
-// 返事の制限時間 = max(ボトルの段ごとの基準, 読む時間) 。読む時間 = 1.2秒 + 一言1字0.09秒 + 3択1字0.035秒（文字量の決まりより長い）
+// 返事の制限時間 = max(ボトルの段ごとの基準, 読む時間) 。読む時間 = 2.5秒 + 一言1字0.15秒 + 3択1字0.07秒（2026-11-07 本人「時間制限早すぎ」で約1.6〜2倍に）
 export const NUM = {
   START: 30, HIT: 14, MISS: -12, SILENT: -14, SIL_OUT: 3, PUSH: -18, SOLD: -10, STOP: -20, ID_OK: 14, NOMI_FEE: 10000, MAXEX: 12,
-  TURN: [5.6, 5.0, 4.5, 4.1, 3.8], READ0: 1.2, READ_LINE: 0.09, READ_OPT: 0.035, HELLO_PLUS: 1.5, ROOKIE_PLUS: 2,
+  TURN: [11, 10, 9, 8.5, 8], READ0: 2.5, READ_LINE: 0.15, READ_OPT: 0.07, HELLO_PLUS: 1.5, ROOKIE_PLUS: 2,
   EV_TWO: 3.4, EV_MASH: 3.8, EV_QUICK: 1.8, EV_PAY: 10000, EV_FINE: 10000, SIL_FINE: 1000,
   HAPPY: 60, WARN: 10000, RAID: 1000000, MINOR: 5000, NOMI: 3000, PER_BOTTLE: 1000, COMM: 0.2,
 }
 
 // ---------- 画像
-const V = '?v=3'
+const V = '?v=4'
 const IMG = {}
 const ITEMS = ['mirror', 'lipstick', 'brooch', 'medicine', 'phone', 'papers', 'fish', 'nose', 'ticket', 'book', 'earbuds', 'readers', 'ledger', 'cards', 'coupons', 'pass']
 // 最初の画面に要る物だけ待つ。コールの絵や事件の人物は準備完了のあと裏で読む
