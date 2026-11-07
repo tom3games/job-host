@@ -1,4 +1,5 @@
 // 見た目の確認。node shot.mjs [幅x高さ]（音は出さない）。全画面を撮って shots/ に置く
+import './mute-auto.mjs'  // テスト中は絶対に音を出さない（playwright を無音に差し替え）
 import { chromium } from 'playwright'
 import { MUTE_LAUNCH, muteContext } from './mute.mjs'
 import { spawn } from 'node:child_process'

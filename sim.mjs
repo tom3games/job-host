@@ -1,6 +1,7 @@
 // 遊び方ごとの「この客に使わせた額」と手取りの分布。node sim.mjs [回数]（音は出さない）
 // 客ごとに種を変えて N 回ずつ。人間の速さ: 読む bot は1手ごとに1.5〜3秒かけて押す（くじ）
 // 読むbotは画面に出ている物だけを使う: 卓の持ち物2つ（itemsW）としぐさ（gestW）・財布の持ち物・事件の状況の一行・事件の選択肢
+import './mute-auto.mjs'  // テスト中は絶対に音を出さない（playwright を無音に差し替え）
 import { chromium } from 'playwright'
 import { MUTE_LAUNCH, muteContext } from './mute.mjs'
 import { spawn } from 'node:child_process'
