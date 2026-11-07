@@ -8,12 +8,19 @@
     card: ['snd/card1.mp3', 'snd/card2.mp3'], clink: ['snd/clink1.mp3', 'snd/clink2.mp3', 'snd/clink3.mp3'], cork: 'snd/cork.mp3', pour: 'snd/pour.mp3',
     step: ['snd/step1.mp3', 'snd/step2.mp3'], tap: 'snd/tap.mp3', win: 'snd/win.mp3', win2: 'snd/win2.mp3', lose: 'snd/lose.mp3',
     stamp: 'snd/stamp1.mp3', siren: 'snd/siren.mp3', coins: 'snd/coins.mp3', thwack: 'snd/thwack.mp3', applause: 'snd/applause.mp3',
+    tip: 'snd/tip.mp3', splash: 'snd/splash.mp3', wipe: ['snd/wipe1.mp3', 'snd/wipe2.mp3'], door: 'snd/door.mp3', bell: 'snd/bell.mp3', paper: 'snd/paper.mp3', shutter: 'snd/shutter.mp3', giggle: 'snd/giggle.mp3', drop: 'snd/drop.mp3',
   })
   const CUE = {
     card: [['card', { vol: 0.5 }]], good: [['clink', { vol: 0.5 }]], bad: [['thwack', { vol: 0.35, rate: 1.1 }]], tap: [['tap', { vol: 0.5, jitter: 0 }]],
     sold: [['cork', { vol: 1, room: 0.4 }], ['pour', { vol: 0.6, delay: 0.5 }], ['coins', { vol: 0.5, delay: 0.3 }]],
     run: [0, 0.14, 0.28, 0.42, 0.56].map(d => ['step', { vol: 0.7, delay: d }]), siren: [['siren', { vol: 0.5, room: 0.4 }]],
     stamp: [['stamp', { vol: 1 }], ['thwack', { vol: 0.7, rate: 0.7 }]], win: [['win', { vol: 0.8 }]], win2: [['win2', { vol: 0.8 }]], lose: [['lose', { vol: 0.8 }]], coins: [['coins', { vol: 0.6 }]],
+    // 事件。入りの音（ドア・倒れる・足音など）と、さばいた時の笑い声
+    ev_ex: [['door', { vol: 0.8 }], ['bell', { vol: 0.5, delay: 0.1 }]], ev_mom: [['door', { vol: 0.8 }], ['bell', { vol: 0.5, delay: 0.1 }]], ev_pizza: [['bell', { vol: 0.7 }], ['door', { vol: 0.6, delay: 0.15 }]],
+    ev_spill: [['tip', { vol: 0.9 }], ['splash', { vol: 0.8, delay: 0.12 }]], ev_wallet: [['drop', { vol: 0.9 }]], ev_senpai: [['paper', { vol: 0.9 }], ['step', { vol: 0.5 }]],
+    ev_shimei: [0, 0.14, 0.28].map(d => ['step', { vol: 0.7, delay: d }]), ev_toilet: [['door', { vol: 0.5, rate: 0.9 }]], ev_hoh: [['step', { vol: 0.6 }], ['step', { vol: 0.6, delay: 0.3 }]],
+    ev_photo: [['tap', { vol: 0.5 }]], ev_bday: [['applause', { vol: 0.55, room: 0.3 }]],
+    wipe: [['wipe', { vol: 0.7 }]], shutter: [['shutter', { vol: 0.9 }]], evok: [['giggle', { vol: 0.45 }]],
   }
   let clap = null
   window.Sfx = function (n) { Snd.played[n] = (Snd.played[n] || 0) + 1; for (const [k, o] of CUE[n] || []) Snd.play(k, o) }

@@ -18,9 +18,19 @@
 - snd/win.mp3: 85 Short music jingles / Kenney / CC0
 - snd/win2.mp3: 85 Short music jingles / Kenney / CC0
 - snd/lose.mp3: 85 Short music jingles / Kenney / CC0
+- snd/tip.mp3: 100 CC0 SFX / rubberduck / CC0
+- snd/splash.mp3: 100 CC0 SFX / rubberduck / CC0
+- snd/wipe1.mp3: 50 RPG sound effects / Kenney / CC0
+- snd/wipe2.mp3: 50 RPG sound effects / Kenney / CC0
+- snd/door.mp3: 100 CC0 SFX / rubberduck / CC0
+- snd/bell.mp3: Bell dings/chimes / PWL / CC0
+- snd/paper.mp3: 100 CC0 SFX / rubberduck / CC0
+- snd/shutter.mp3: 100 CC0 SFX #2 / rubberduck / CC0
+- snd/giggle.mp3: Group giggling / Nocturnal_Vanguard / CC0
+- snd/drop.mp3: 50 RPG sound effects / Kenney / CC0
 
 ## 画像
-- img/ の人物・店内・小物・ボトルは、このゲームのために画像生成で作った架空のものです（生成元のプロンプトは art/prompts/）。実在の人物・店・銘柄とは関係ありません。
+- img/ の人物・店内・小物・ボトル（事件の元カレ・ピザの配達員を含む）は、このゲームのために画像生成で作った架空のものです（生成元のプロンプトは art/prompts/）。実在の人物・店・銘柄とは関係ありません。
 
 ## 共通部品
 - payslip.js / support.js / tm.js / privacy.html: 1日だけ職場体験シリーズ共通

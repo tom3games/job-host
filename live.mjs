@@ -5,7 +5,7 @@ import { chromium, webkit } from 'playwright'
 import { execSync } from 'node:child_process'
 // 個人のアカウント名は公開リポジトリに書かない。実行時に gh から取る（2026-11-02 live.mjs に名前が文字で入ったまま5本公開していた）
 const OWNER = (() => { try { return execSync('gh api user -q .login', { encoding: 'utf8' }).trim().toLowerCase() } catch { return '' } })()
-const URL0 = 'https://tom3games.github.io/job-host/'
+const URL0 = process.env.URL || 'https://tom3games.github.io/job-host/'
 const out = []
 for (const [name, bt, opts] of [['chromium', chromium, {}], ['webkit', webkit, { isMobile: true, hasTouch: true, deviceScaleFactor: 2 }]]) {
   const b = await bt.launch(bt === chromium ? MUTE_LAUNCH : {}), ctx = await b.newContext({ locale: 'ja-JP', viewport: { width: 390, height: 844 }, ...opts })
@@ -23,12 +23,19 @@ for (const [name, bt, opts] of [['chromium', chromium, {}], ['webkit', webkit, {
   const cards = await p.evaluate(() => [...document.querySelectorAll('#cards button')].map(b => b.textContent.trim()))
   await p.screenshot({ path: `shots/live-${name}-play.png` })
   const line = await p.evaluate(() => HC.state().line)
+  // v3: 制限時間（泡）が出ていて、バーの部品は無い。卓に本音の持ち物が2つ
+  const v3 = await p.evaluate(() => { const s = HC.state(); return { limit: +(s.limit || 0).toFixed(1), foam: +s.foam.toFixed(2), items: s.items.length, bar: !!document.querySelector('#timer'), ev: HC.G.tb.evQ.length } })
+  if (!(v3.limit >= 3.8 && v3.foam > 0 && v3.items === 2 && !v3.bar && v3.ev >= 2)) errs.push('v3 ' + JSON.stringify(v3))
   if (opts.hasTouch) await p.tap('#cards button'); else await p.click('#cards button')
   await p.waitForFunction(() => HC.state().ex >= 1, null, { timeout: 15000 })
   const moved = await p.evaluate(() => HC.state().ex)
   await p.evaluate(() => { HC.result() }); await p.waitForTimeout(6000)
   const end = await p.evaluate(() => ({ again: document.querySelector('#bAgain')?.textContent, sup: !!document.getElementById('tmSupport'), mute: window.__muteOk && window.__muteOk() }))
-  out.push(`${name}: line=${line} cards=${cards.join(' / ')} ex=${moved} end=${JSON.stringify(end)}`)
+  // 事件を1つ割り込ませて、さばけるか
+  await p.evaluate(() => HC.start(2, { skipIntro: true, guest: 'g1' })); await p.waitForFunction(() => HC.state().phase === 'turn' && HC.state().mode === 'play', null, { timeout: 15000 })
+  const evr = await p.evaluate(() => { HC.forceEvent('shimei'); const s = HC.state(); HC.choose(s.ev.opts.indexOf('stay')); return { ok: HC.G.evOk, b: document.querySelector('#bubble').textContent } })
+  await p.screenshot({ path: `shots/live-${name}-event.png` })
+  out.push(`${name}: line=${line} cards=${cards.join(' / ')} ex=${moved} v3=${JSON.stringify(v3)} event=${JSON.stringify(evr)} end=${JSON.stringify(end)}`)
   await p.screenshot({ path: `shots/live-${name}.png` })
   const og = await p.evaluate(async () => { const r = await fetch(document.querySelector('meta[property="og:image"]').content); return r.status + ' ' + r.headers.get('content-type') })
   out.push(`${name}: og=${og} errors=${errs.length ? errs.join(' | ') : 'none'}`)

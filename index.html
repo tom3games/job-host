@@ -4,17 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>一晩だけホスト | 1人の客にいくら使わせるかのバカゲー</title>
-<meta name="description" content="新人ホストとして一晩、客1人に付きっきり。客の一言に3択で返して楽しませ、ボトルを安い順に勧めて、いくら使ってもらえるかを競うバカゲー。シャンパンが入ると店全体で変なコール。色恋とツケに手を出すと営業停止。無料・スマホのブラウザで遊べる。">
+<meta name="description" content="新人ホストとして一晩、客1人に付きっきり。持ち物としぐさで客の本音を読み、グラスの泡が消える前に3択で返す。元カレ来店やこぼしたグラスなど事件もさばいて、ボトルを安い順に勧めるバカゲー。シャンパンが入ると店全体で変なコール。色恋とツケに手を出すと営業停止。無料・スマホのブラウザで遊べる。">
 <meta name="theme-color" content="#0b0708">
 <meta property="og:type" content="website">
 <meta property="og:title" content="一晩だけホスト 1日だけ職場体験 #5">
-<meta property="og:description" content="客1人の一言に3択で返し、楽しませてからボトル。シャンパンが入れば店全体で変なコール。色恋とツケに手を出すと営業停止。">
-<meta property="og:image" content="https://tom3games.github.io/job-host/og.png?v=2">
+<meta property="og:description" content="持ち物としぐさで客の本音を読み、泡が消える前に3択で返す。元カレ来店も店長の母も、さばいてシャンパン。色恋とツケは営業停止。">
+<meta property="og:image" content="https://tom3games.github.io/job-host/og.png?v=3">
 <meta property="og:url" content="https://tom3games.github.io/job-host/">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="一晩だけホスト 1日だけ職場体験 #5">
 <meta name="twitter:description" content="1人の客にいくら使わせるか。色恋とツケに手を出すと営業停止。">
-<meta name="twitter:image" content="https://tom3games.github.io/job-host/og.png?v=2">
+<meta name="twitter:image" content="https://tom3games.github.io/job-host/og.png?v=3">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230b0708'/%3E%3Cpath d='M20 8h24c0 22-5 30-12 30S20 30 20 8zM30 38h4v14h8v4H22v-4h8z' fill='%23d9b45f'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -71,8 +71,9 @@ button{font-family:inherit;color:inherit;font-size:inherit;border:0;background:n
 #bubble.boss{background:#1a1214;color:var(--gold-hi);border:1px solid var(--gold-dk)}
 #clue{position:absolute;z-index:26;left:0;right:0;bottom:100%;padding:6px 14px;background:linear-gradient(90deg,rgba(8,5,6,.92),rgba(8,5,6,.55));font-family:var(--min);font-weight:700;font-size:clamp(13px,3.7vw,15px);line-height:1.35;color:var(--gold-hi);pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #clue.tip{color:#fff;background:linear-gradient(90deg,#8c1f33,rgba(140,31,51,.6))}
+#clue.tr{color:#fff;background:linear-gradient(90deg,#1c3a5a,rgba(28,58,90,.6));font-family:var(--sans)}
+#bubble.them{background:#1a1214;color:var(--gold-hi);border:1px solid var(--gold-dk);border-radius:16px 4px 16px 16px}
 #hand{position:fixed;z-index:30;left:0;right:0;bottom:0;padding:8px 12px max(10px,calc(env(safe-area-inset-bottom) + 6px));background:#120b0d;display:flex;flex-direction:column;gap:6px}
-#timer{position:absolute;left:0;top:0;height:2px;background:var(--gold);width:100%;transform-origin:left}
 /* 会話は名刺 */
 .card{display:flex;align-items:center;min-height:52px;width:100%;padding:0 14px;text-align:left;font-family:var(--min);font-weight:700;font-size:clamp(15px,4.2vw,18px);line-height:1.2;color:#f5ead0;background:#1c1416;outline:1px solid var(--gold-dk);outline-offset:-4px;transition:transform .08s,opacity .15s}
 .card:nth-child(1){transform:rotate(-.5deg)}
@@ -81,6 +82,9 @@ button{font-family:inherit;color:inherit;font-size:inherit;border:0;background:n
 .card:active{transform:scale(.98);background:#2a1c1f}
 .card:disabled{opacity:.42}
 .card.id{background:var(--paper);color:var(--ink);outline-color:#555}
+/* 事件の札は赤い縁。押したらすぐ動く */
+.card.off{visibility:hidden}
+.card.ev{background:#3a0f16;outline:2px solid #ff8a7e;color:#fff;font-family:var(--sans);font-weight:900}
 #cards{display:flex;flex-direction:column;gap:5px}
 /* ボトルは金の札。押してほしいので厚みはこれだけ */
 #bBottle{display:flex;align-items:center;justify-content:center;gap:8px;min-height:50px;margin-top:2px;background:#2b1d0b;color:#d8c48c;font-family:var(--min);font-weight:900;font-size:17px;letter-spacing:.06em;transition:background .25s}
@@ -201,9 +205,8 @@ button{font-family:inherit;color:inherit;font-size:inherit;border:0;background:n
   <div id="bubble" hidden></div>
   <div id="hand">
     <div id="clue" hidden></div>
-    <div id="timer"></div>
     <div id="cards"></div>
-    <button id="bBottle"><img src="img/b1.webp?v=2" alt=""><span id="tBottle"></span></button>
+    <button id="bBottle"><img src="img/b1.webp?v=3" alt=""><span id="tBottle"></span></button>
   </div>
 </main>
 
@@ -247,12 +250,12 @@ button{font-family:inherit;color:inherit;font-size:inherit;border:0;background:n
   },15000);
 })();
 </script>
-<script src="tm.js?v=2" data-game="job-host"></script>
-<script src="sfx.js?v=2"></script>
-<script src="sound.js?v=2"></script>
-<script src="data.js?v=2"></script>
-<script src="talk.js?v=2"></script>
-<script type="module" src="game.js?v=2"></script>
-<script src="support.js?v=2" data-ja="シャンパン" data-en="champagne"></script>
+<script src="tm.js?v=3" data-game="job-host"></script>
+<script src="sfx.js?v=3"></script>
+<script src="sound.js?v=3"></script>
+<script src="data.js?v=3"></script>
+<script src="talk.js?v=3"></script>
+<script type="module" src="game.js?v=3"></script>
+<script src="support.js?v=3" data-ja="シャンパン" data-en="champagne"></script>
 </body>
 </html>
