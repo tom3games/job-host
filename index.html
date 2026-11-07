@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>一晩だけホスト | 会話を選んで売上を積むバカゲー</title>
-<meta name="description" content="新人ホストとして一晩、席について客の手元を読み、会話の3択で売上を積むバカゲー。シャンパンが入ると店全体で変なコール。色恋とツケに手を出すと営業停止。無料・スマホのブラウザで遊べる。">
+<title>一晩だけホスト | 1人の客にいくら使わせるかのバカゲー</title>
+<meta name="description" content="新人ホストとして一晩、客1人に付きっきり。客の一言に3択で返して楽しませ、ボトルを安い順に勧めて、いくら使ってもらえるかを競うバカゲー。シャンパンが入ると店全体で変なコール。色恋とツケに手を出すと営業停止。無料・スマホのブラウザで遊べる。">
 <meta name="theme-color" content="#0b0708">
 <meta property="og:type" content="website">
 <meta property="og:title" content="一晩だけホスト 1日だけ職場体験 #5">
-<meta property="og:description" content="客の手元を読んで会話を選ぶ。シャンパンが入れば店全体で変なコール。色恋とツケに手を出すと営業停止。">
-<meta property="og:image" content="https://tom3games.github.io/job-host/og.png?v=1">
+<meta property="og:description" content="客1人の一言に3択で返し、楽しませてからボトル。シャンパンが入れば店全体で変なコール。色恋とツケに手を出すと営業停止。">
+<meta property="og:image" content="https://tom3games.github.io/job-host/og.png?v=2">
 <meta property="og:url" content="https://tom3games.github.io/job-host/">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="一晩だけホスト 1日だけ職場体験 #5">
-<meta name="twitter:description" content="客の手元を読んで会話を選ぶ。色恋とツケに手を出すと営業停止。">
-<meta name="twitter:image" content="https://tom3games.github.io/job-host/og.png?v=1">
+<meta name="twitter:description" content="1人の客にいくら使わせるか。色恋とツケに手を出すと営業停止。">
+<meta name="twitter:image" content="https://tom3games.github.io/job-host/og.png?v=2">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230b0708'/%3E%3Cpath d='M20 8h24c0 22-5 30-12 30S20 30 20 8zM30 38h4v14h8v4H22v-4h8z' fill='%23d9b45f'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -98,6 +98,12 @@ button{font-family:inherit;color:inherit;font-size:inherit;border:0;background:n
 .mi span{flex:1;min-width:0;font-family:var(--min);font-weight:700;font-size:clamp(14px,3.9vw,16px);line-height:1.25;color:#f5ead0}
 .mi b{font-family:'Dela Gothic One',var(--sans);font-weight:400;font-size:15px;color:var(--gold-hi);white-space:nowrap}
 .mi:active{background:rgba(255,255,255,.06)}
+.mi:disabled{cursor:default}
+.mi.sold{opacity:.5}.mi.sold b{font-family:var(--sign);color:#ff8a7e;font-size:16px;border:2px solid #ff8a7e;padding:0 6px;transform:rotate(-8deg)}
+.mi.lock{opacity:.38}.mi.lock span{font-size:clamp(12.5px,3.5vw,14px)}
+.mi.next{background:rgba(217,180,95,.1)}
+.mnote{display:block;text-align:center;font-size:12px;font-weight:700;color:var(--dim);margin:-2px 0 2px}
+.mi.idb{min-height:48px;justify-content:center;background:var(--paper);margin-bottom:4px}.mi.idb span{flex:none;color:var(--ink);font-family:var(--sans);font-weight:900}
 #ura{margin-top:4px;padding:6px 8px 2px;border:1px dashed rgba(216,53,42,.6);transform:rotate(-.9deg)}
 #ura small{display:block;font-size:11px;color:#ff8a7e;font-weight:700}
 .mi.bad{min-height:44px;border:0;padding:2px 2px}
@@ -197,7 +203,7 @@ button{font-family:inherit;color:inherit;font-size:inherit;border:0;background:n
     <div id="clue" hidden></div>
     <div id="timer"></div>
     <div id="cards"></div>
-    <button id="bBottle"><img src="img/b1.webp?v=1" alt=""><span id="tBottle"></span></button>
+    <button id="bBottle"><img src="img/b1.webp?v=2" alt=""><span id="tBottle"></span></button>
   </div>
 </main>
 
@@ -241,11 +247,12 @@ button{font-family:inherit;color:inherit;font-size:inherit;border:0;background:n
   },15000);
 })();
 </script>
-<script src="tm.js?v=1" data-game="job-host"></script>
-<script src="sfx.js?v=1"></script>
-<script src="sound.js?v=1"></script>
-<script src="data.js?v=1"></script>
-<script type="module" src="game.js?v=1"></script>
-<script src="support.js?v=1" data-ja="シャンパン" data-en="champagne"></script>
+<script src="tm.js?v=2" data-game="job-host"></script>
+<script src="sfx.js?v=2"></script>
+<script src="sound.js?v=2"></script>
+<script src="data.js?v=2"></script>
+<script src="talk.js?v=2"></script>
+<script type="module" src="game.js?v=2"></script>
+<script src="support.js?v=2" data-ja="シャンパン" data-en="champagne"></script>
 </body>
 </html>

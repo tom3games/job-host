@@ -1,8 +1,9 @@
-// 一晩だけホスト 本体。客の手元を読んで会話の3択、楽しませてからボトル。乱数で当たり外れを決めない（毎晩のくじは席に着く前に全部決まる）
+// 一晩だけホスト 本体。1プレイ＝客1人。客の一言に、その一言へ答える3択で返し、楽しませてからボトルを安い順に勧める
+// 会話は talk.js に客ごとに書き下ろし。誰が来るか・話題の順番・財布は席に着く前のくじで全部決まる（同じ種なら同じ流れ）
 // 描画は Canvas 2D、時間は固定60Hz（performance.now で数える）
-import { drawPayslip, totals } from './payslip.js?v=1'
+import { drawPayslip, totals } from './payslip.js?v=2'
 window.__jsUp = true
-const D = window.HD
+const D = window.HD, T = window.HT
 const $ = s => document.querySelector(s)
 const store = { get(k) { try { return localStorage.getItem(k) } catch (e) { return null } }, set(k, v) { try { localStorage.setItem(k, v) } catch (e) {} } }
 let lang = store.get('jh_lang') || ((navigator.language || 'ja').startsWith('ja') ? 'ja' : 'en')
@@ -12,63 +13,47 @@ const yen = n => '¥' + Math.round(n).toLocaleString('en-US')
 function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
 
 // ---------- 釣り合いの数字（sim.mjs で確かめる）
-export const NUM = { START: 25, GOOD: 20, DEEP: 22, SUB: 12, BAD: -8, SWAP: -12, MEH: 2, MEH2: -2, MINE: -22, COMEBACK: 26, BORED: -14, SILENT: -14, EARLY: -25, OVER: -20, SOLD: -18, TURNS: 6, HELP_TURNS: 4, TURN_SEC: 14, NOMI: 60, FINE: 30000, HELP: 10000, MINOR: 5000, WARN: 10000, RAID: 1000000, NOMI_BACK: 30000, TOWER: 500000, TOWER_NEED: 3, COMM: 0.2 }
-const RANK = [[1200000, 'legend'], [600000, 'top'], [200000, 'mid'], [30000, 'low'], [0, 'zero']]
+export const NUM = { START: 30, HIT: 14, RESCUE: 18, WEAK: 3, MISS: -12, BORED: -14, SILENT: -14, PUSH: -18, SOLD: -10, STOP: -20, ID_OK: 14, NOMI_FEE: 10000, MAXEX: 11, TURN_SEC: 14, HAPPY: 60, WARN: 10000, RAID: 1000000, MINOR: 5000, NOMI: 3000, PER_BOTTLE: 1000, COMM: 0.2 }
 
 // ---------- 画像
-const V = '?v=1'
+const V = '?v=2'
 const IMG = {}
-const ITEMS = ['mirror', 'lipstick', 'brooch', 'medicine', 'phone', 'papers', 'fish', 'nose', 'ticket', 'book', 'earbuds', 'readers', 'senpai', 'pass', 'ledger', 'cards', 'coupons', 'purse']
+const ITEMS = ['mirror', 'brooch', 'medicine', 'ticket', 'book', 'readers', 'ledger', 'papers', 'cards', 'coupons', 'purse', 'pass']
 // 最初の画面に要る物だけ待つ。コールの絵などは準備完了のあと裏で読む
 const FIRST = ['bg', 's_senpai', 'b1']
 const LATER = ['s_boss', 'crew', 's_naikin', 'b2', 'b3', 'tower', ...ITEMS.map(n => 'i_' + n)]
 const loadImg = n => new Promise(res => { if (IMG[n]) return res(); const im = new Image(); im.onload = () => { IMG[n] = im; res() }; im.onerror = () => { console.error('img ' + n); res() }; im.src = 'img/' + n + '.webp' + V })
-const faces = g => [g.k, g.k + '_h', g.k + '_c'].filter(n => HAS.has(n))
 const HAS = new Set(['g1', 'g2', 'g3', 'g4', 'g5', 'g6'].flatMap(k => [k, k + '_h', k + '_c']).concat(['x_tax', 'x_tax_c', 'x_oba', 'x_oba_h', 'x_oba_c', 'x_mom', 'x_mom_h', 'x_oji', 'x_oji_h', 'x_young', 'x_young_h']))
+const faces = g => [g.k, g.k + '_h', g.k + '_c'].filter(n => HAS.has(n))
 
 // ---------- 場面の座標（背景 1536x1024、人物は 640x960 に縮めてあるが 896x1344 のつもりで置く）
-const SW = 1536, SH = 1024, CY = 784, CS = 0.62, IW = 896, IH = 1344, CTOP = CY - 1110 * CS, CX0 = 768 - IW * CS / 2
+const SW = 1536, SH = 1024, CY = 784, CS = 0.62, IW = 896, IH = 1344
 
 // ---------- 状態
-const G = { mode: 'title', t: 0, tasks: [], night: [], idx: -1, tb: null, sales: 0, noms: 0, bottles: 0, helps: 0, minors: 0, fines: 0, warns: 0, ended: null, seed: 1, snap: null, log: [], hold: false, flash: 0, bestPrice: 0, mom: false, tut: 0, callAt: 0 }
+const G = { mode: 'title', t: 0, tasks: [], tb: null, ended: null, seed: 1, snap: null, log: [], flash: 0, mom: false, callAt: 0, bottles: 0, warns: 0, minors: 0 }
 const later = (d, fn) => G.tasks.push({ at: G.t + d, fn, night: G.gen })
-const sayMin = s => Math.max(1.5, 0.9 + 0.09 * s.length)
+const sayMin = s => Math.max(1.6, 0.9 + 0.09 * s.length)
+const byKey = Object.fromEntries(T.GUESTS.map(g => [g.k, g]))
+const lineOf = (t, k) => (t.g.lines && t.g.lines[k]) || D.LINE[k]
 
-// ---------- 1晩のくじ。同じ種なら同じ夜
-function buildNight(seed) {
+// ---------- 1回のくじ。同じ種なら同じ客・同じ話題の順番・同じ並び
+function buildPlay(seed, guestKey) {
   const r = rng(seed), shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = (r() * (i + 1)) | 0;[a[i], a[j]] = [a[j], a[i]] } return a }, pick = a => a[(r() * a.length) | 0]
-  const regs = shuffle(D.REG), wants = shuffle(D.TAGS), wallets = shuffle(['rich', 'mid', 'mid', pick(['poor', 'poor2'])])
-  const nightNeta = shuffle(D.NETA).slice(0, 4), out = []
-  for (let i = 0; i < 4; i++) out.push({ g: regs[i], main: wants[i], wallet: wallets[i] })
-  // 先輩の客（永久指名）は2卓目以降に6割の夜だけ
-  if (r() < 0.6) { const j = 1 + ((r() * 3) | 0); out[j].senpai = true }
-  // 変な客。店長の母はたまにしか来ない
-  const gagKey = r() < 0.12 ? 'mom' : pick(['tax', 'oba', 'oji', 'young'])
-  const gag = D.GAG[gagKey], gt = { g: gag, gag: gagKey, main: gag.main || pick(D.TAGS), wallet: gag.wallet || 'mid' }
-  if (gag.young) { gt.minor = r() < 0.5; gt.wallet = gt.minor ? 'mid' : pick(['mid', 'rich']) }
-  out.splice(2 + ((r() * 3) | 0), 0, gt)
-  out.forEach((t, i) => {
-    t.i = i
-    t.sub = t.g.sub || pick(D.TAGS.filter(x => x !== t.main))
-    t.item = t.g.item || pick(D.CLUE[t.main]); t.clue0 = t.item
-    t.gesture = pick(D.GESTURE[t.sub])
-    const w = D.WALLET[t.wallet]; t.walletYen = w.yen; t.walletItem = w.i ? w : null
-    // 最初の一言は4割の客で建前（しぐさと食い違う）。しぐさが本当
-    t.helloTag = r() < 0.4 ? pick(D.TAGS.filter(x => x !== t.main)) : t.main
-    t.hello = t.g.hello || pick(D.HELLO[t.helloTag])
-    if (t.g.hoh) t.helloTag = null
-    // 毎手、4種類のうち1つが出ない。順番は卓ごとのくじ。1手目は本命を必ず出す
-    const c = shuffle(D.TAGS); if (c[0] === t.main) { c[0] = c[1]; c[1] = t.main } t.omit = c
-    // 本物の言葉。褒めるのは卓の持ち物の細部から。持ちネタは同じ夜の同じ客で一周すると同じ話になる
-    const neta = [nightNeta[i % 4], nightNeta[(i + 1) % 4]]
-    t.pool = { praise: [...(D.DETAIL[t.item.i] || []), ...shuffle(D.LINES.praise)], listen: shuffle(D.LINES.listen), quiet: shuffle(D.LINES.quiet), joke: neta }
-    t.hollow = {}; for (const k of D.TAGS) t.hollow[k] = shuffle(D.HOLLOW[k])
-    t.deepL = shuffle(D.DEEP); t.mines = shuffle(D.MINE); t.backs = shuffle(D.COMEBACK); t.used = new Set(); t.comeback = false; t.prev = null; t.early = 0
-    t.order = Array.from({ length: 8 }, () => shuffle([0, 1, 2]))
-    t.mood = NUM.START; t.turn = 0; t.tags = []; t.bored = 0; t.sil = 0; t.sold = 0; t.state = 'wait'; t.checked = false; t.spent = 0
-  })
-  return out
+  let g = byKey[guestKey]
+  if (!g) { const ks = Object.keys(T.WEIGHT), sum = ks.reduce((a, k) => a + T.WEIGHT[k], 0); let x = r() * sum; for (const k of ks) { x -= T.WEIGHT[k]; if (x <= 0) { g = byKey[k]; break } } g = g || byKey.g1 }
+  else r()
+  const wallet = pick(g.wallets), w = D.WALLET[wallet]
+  const t = {
+    g, gag: g.gag || null, want: g.want, wallet, walletYen: w.yen, walletItem: w.i && w.i !== g.item ? w : null, item: { i: g.item },
+    topics: shuffle(g.topics), minor: g.gag === 'young' ? r() < 0.5 : false, r,
+    mood: NUM.START, spent: 0, tier: 0, strikes: 0, sil: 0, ex: 0, rescued: false, netaUsed: false, checked: false, happy: false,
+    state: 'wait', node: null, kind: null, choices: null, ti: null, si: 0, said: false,
+  }
+  t.shuffle = shuffle
+  return t
 }
+// 財布で買える段の数（安い順に足していって届く所まで）
+function affordable(t) { let s = 0, n = 0; for (const b of D.BOTTLE) { if (s + b.yen > t.walletYen) break; s += b.yen; n++ } return n }
 
 // ---------- 画面
 function show(v) { for (const id of ['vTitle', 'vPlay', 'vEnd']) $('#' + id).hidden = id !== v; layout() }
@@ -76,171 +61,133 @@ function startNight(seed, opts = {}) {
   ambOn(); hideAll()
   G.gen = (G.gen || 0) + 1
   G.seed = seed ?? ((Math.random() * 1e9) | 0)
-  G.night = buildNight(G.seed); Object.assign(G, { idx: -1, tb: null, sales: 0, noms: 0, bottles: 0, helps: 0, minors: 0, fines: 0, warns: 0, ended: null, snap: null, log: [], tasks: [], hold: false, bestPrice: 0, mom: false, tut: 0, bossVis: null, callState: null, tower: false, menuOpen: false, count: null, stampAt: null, result: null, total: null, raidKind: null })
-  for (const t of G.night) for (const n of faces(t.g)) loadImg(n)
+  const t = buildPlay(G.seed, opts.guest)
+  Object.assign(G, { tb: t, ended: null, snap: null, log: [], tasks: [], mom: false, bottles: 0, warns: 0, minors: 0, callState: null, menuOpen: false, count: null, stampAt: null, result: null, total: null, raidKind: null, bossVis: null })
+  for (const n of faces(t.g)) loadImg(n)
   if (!$('#callCrew').getAttribute('src')) $('#callCrew').src = 'img/crew.webp' + V
   window.TM && TM.start()
   updateHud(); show('vPlay'); setCards(null)
-  if (opts.skipIntro) { nextTable(); return }
-  G.mode = 'intro'; G.tut = store.get('jh_tut') === '1' ? 0 : 1
+  if (opts.skipIntro) { seat(); return }
+  G.mode = 'intro'
   G.introI = 0; $('#sayImg').src = 'img/s_boss.webp' + V; $('#sayNm').textContent = L().boss; sayLine(); $('#say').hidden = false
 }
 function sayLine() { $('#sayLine').textContent = L().intro[G.introI] }
 function introNext() { Sfx('card'); G.introI++; if (G.introI >= L().intro.length) introEnd(); else sayLine() }
-function introEnd() { $('#say').hidden = true; nextTable() }
+function introEnd() { if (G.mode !== 'intro') return; $('#say').hidden = true; seat() }
 function hideAll() { for (const id of ['#menu', '#call', '#stop', '#raid', '#say', '#how']) $(id).hidden = true; hideBubble(); hideClue() }
 
-function nextTable() {
-  G.mode = 'play'; G.idx++; G.tb = null; setCards(null); hideBubble(); hideClue()
-  updateHud()
-  if (G.idx >= G.night.length) return closing()
-  // 卓の合間に先輩の妙な一言（2回に1回・文字は1つだけ）
-  if (G.idx > 0 && G.idx % 2 === 0) {
-    G.bossVis = { img: 's_senpai', at: G.t }; say(tx(D.QUIP[(G.seed + G.idx) % D.QUIP.length]), 'boss')
-    later(1.9, () => { G.bossVis = null; hideBubble(); seat() }); return
-  }
-  seat()
-}
 function seat() {
-  const t = G.night[G.idx]; G.tb = t; t.state = 'enter'; t.enterAt = G.t; t.leaveAt = null; t.reactFx = null
+  const t = G.tb; G.mode = 'play'; t.state = 'enter'; t.enterAt = G.t; t.leaveAt = null; t.reactFx = null
   updateHud(); Sfx('card')
-  later(0.8, () => {
-    if (G.tb !== t) return
-    say(tx(t.hello)); setClue(tx(t.senpai ? D.SENPAI_CARD : t.clue0))
-    later(sayMin(tx(t.hello)) * 0.6, () => { if (G.tb === t) beginTurn() })
-  })
+  later(0.8, () => { if (G.tb === t) present(t.g.hello, 'hello') })
 }
-function offered(t) {
-  // 毎手4種類のうち1つが出ない。残り3枚のうち1枚は薄い言葉か地雷。直前に当たれば深掘り、滑れば挽回の札に替わる
-  const miss = t.omit[t.turn % 4], tags = D.TAGS.filter(x => x !== miss), ord = t.order[t.turn % 8].map(i => tags[i])
-  // 1手目と、2つ目の話が出ない手は、本命を薄い札にしない（読めても打つ手が無い手を作らない）
-  let slot = t.turn % 3; if (ord[slot] === t.main && (t.turn === 0 || miss === t.sub)) slot = (slot + 1) % 3
-  const list = ord.map((tag, i) => i === slot ? { tag, form: 'hollow', text: cycle(t.hollow[tag]) } : { tag, form: 'real', text: cycle(t.pool[tag]) })
-  if (t.turn % 2 === 1) list[slot] = { tag: 'mine', form: 'mine', text: cycle(t.mines) }
-  if (t.prev === 'good' || t.prev === 'sub') list[slot] = { tag: 'deep', form: 'deep', text: cycle(t.deepL) }
-  else if ((t.prev === 'bad' || t.prev === 'mine' || t.prev === 'swap') && !t.comeback) list[slot] = { tag: 'back', form: 'back', text: cycle(t.backs) }
-  if (t.g.young && !t.checked) list[slot] = { tag: 'id', form: 'id', text: { ja: L().idcheck, en: L().idcheck } }
-  return list
+// 客の一言を出して、3択を並べる。again はボトルや内勤のあとに同じ一言へ戻る時
+function present(node, kind, again) {
+  const t = G.tb; if (!t || t.state === 'gone') return
+  t.node = node; t.kind = kind; t.state = 'turn'; t.deadline = G.t + NUM.TURN_SEC
+  if (!again || !t.choices) t.choices = t.shuffle(node.o)
+  say(tx(node.s)); setCards(t.choices); refreshBottle()
+  // しぐさの一行。無い一歩は今の態度を見せる。最初の1回だけ勧めどきを教える
+  if (node.c) setClue(tx(node.c))
+  else if (kind === 'hello') setClue(tx(t.g.itemClue))
+  else if (store.get('jh_tut') !== '1' && bottleReady(t)) { store.set('jh_tut', '1'); setClue(L().tut.bottle, 'tip') }
+  else setClue(tx(attLine(t)))
+  updateHud()
 }
-const cycle = p => { const o = p.shift(); p.push(o); return o }
-const attKey = m => m < 25 ? 'low' : m < 45 ? 'mid' : m < 65 ? 'warm' : m < 85 ? 'lean' : 'full'
-function attLine(t) { const a = D.ATT[attKey(t.mood)]; return a ? a[(t.turn + t.i) % a.length] : null }
-function pickClue(t) {
-  // 1手目は持ち物、2手目は2つ目のしぐさ、3手目は財布、以降は今の態度。冷めている時はいつも態度
-  if (t.senpai && t.turn === 0) return D.SENPAI_CARD
-  if (attKey(t.mood) === 'low' && t.turn > 0) return attLine(t)
-  if (t.turn === 0) return t.clue0
-  if (t.turn === 1) return t.senpai ? t.clue0 : t.gesture
-  if (t.turn === 2) return t.senpai ? t.gesture : (t.walletItem || attLine(t) || t.gesture)
-  return attLine(t) || t.gesture
-}
-function beginTurn() {
-  const t = G.tb; if (!t) return
-  t.state = 'turn'; t.choices = offered(t); t.deadline = G.t + NUM.TURN_SEC
-  setCards(t.choices); refreshBottle()
-  setClue(tx(pickClue(t)))
-  if (G.tut === 1) { G.tut = 2; tip(L().tut.clue) }
-  else if (G.tut === 2 && t.mood >= D.BOTTLE[0].need && !t.senpai) { G.tut = 0; tip(L().tut.bottle) }
-}
-function endTurn() {
-  const t = G.tb; if (!t) return
-  t.turn++
-  if (t.state === 'gone') return
-  if (t.mood <= 0 || t.bored >= 2 || t.sil >= 2 || t.turn >= (t.senpai ? NUM.HELP_TURNS : NUM.TURNS)) return leaveTable()
-  beginTurn()
-}
+const attKey = m => m < 25 ? 'low' : m < 45 ? 'mid' : m < 60 ? 'warm' : m < 85 ? 'lean' : 'full'
+function attLine(t) { const a = D.ATT[attKey(t.mood)]; return a[(t.ex + t.tier) % a.length] }
+const bottleReady = t => t.tier < D.BOTTLE.length && t.mood >= D.BOTTLE[t.tier].need
 
 // ---------- 会話を選ぶ
 function choose(i) {
   const t = G.tb; if (G.mode !== 'play' || !t || t.state !== 'turn') return false
   const c = t.choices[i]; if (!c) return false
   t.state = 'react'; setCards(t.choices, true); refreshBottle()
-  if (c.tag === 'id') return idCheck(t)
-  const tKey = c.text.ja, lastTwo = t.tags.slice(-2)
-  let kind
-  if (c.form === 'mine') kind = 'mine'
-  else if (c.form === 'back') { kind = 'comeback'; t.comeback = true }
-  else if (c.form === 'deep') kind = 'deep'
-  else if (t.used.has(tKey) || (lastTwo.length === 2 && lastTwo[0] === c.tag && lastTwo[1] === c.tag)) kind = 'bored'
-  else if (c.form === 'hollow') kind = c.tag === t.main ? 'meh' : 'meh2'
-  else if (c.tag === t.main) kind = 'good'
-  else if (c.tag === t.sub) kind = 'sub'
-  else kind = (t.prev === 'good' || t.prev === 'deep') ? 'swap' : 'bad'
-  t.used.add(tKey); t.tags.push(c.tag); t.sil = 0
-  const d = { good: NUM.GOOD, deep: NUM.DEEP, sub: NUM.SUB, bad: NUM.BAD, swap: NUM.SWAP, meh: NUM.MEH, meh2: NUM.MEH2, mine: NUM.MINE, comeback: NUM.COMEBACK, bored: NUM.BORED }[kind]
-  setMood(t, d); if (kind === 'bored') t.bored++
-  t.prev = kind
-  G.log.push(`${t.g.k}:${c.tag}:${c.form}:${kind}`)
-  react(t, kind, c.tag)
+  if (c.st === 'i') return idCheck(t, true)
+  let grade = c.g
+  if (c.st === 'n') { if (t.netaUsed) grade = 'bored'; t.netaUsed = true }
+  const d = { H: t.kind === 'rescue' ? NUM.RESCUE : NUM.HIT, W: NUM.WEAK, M: NUM.MISS, bored: NUM.BORED }[grade]
+  setMood(t, d); t.sil = 0
+  G.log.push(`${t.g.k}:${t.kind}:${c.st}:${grade}`)
+  react(t, grade === 'bored' ? lineOf(t, 'bored') : c.r, grade === 'H' ? 'h' : grade === 'W' ? 'n' : 'c', () => advance(grade))
   return true
 }
-function react(t, kind, tag) {
-  const pick = a => a[(t.turn + t.i) % a.length]
-  let s
-  const pos = kind === 'good' || kind === 'sub' || kind === 'deep' || kind === 'comeback'
-  if (t.g.hoh) s = pos ? t.g.good : t.g.bad
-  else if (pos && t.g.good && kind !== 'comeback') s = t.g.good
-  else if (kind === 'bad' && t.g.bad) s = t.g.bad
-  else if (kind === 'good') s = pick(D.REACT.good[t.main])
-  else if (kind === 'meh2') s = pick(D.REACT.meh)
-  else if (kind === 'bad') s = pick(D.REACT.bad[tag] || D.REACT.bad.praise)
-  else s = pick(D.REACT[kind])
-  t.reactFx = { kind: pos ? 'h' : kind === 'meh' || kind === 'meh2' ? 'n' : 'c', at: G.t }
-  if (pos) Sfx('good'); else if (kind !== 'meh' && kind !== 'meh2') { t.shake = G.t; Sfx('bad') }
-  say(tx(s))
-  later(sayMin(tx(s)), () => { if (G.tb === t && t.state === 'react') endTurn() })
+function react(t, line, face, then) {
+  t.reactFx = { kind: face, at: G.t }
+  if (face === 'h') Sfx('good'); else if (face === 'c') { t.shake = G.t; Sfx('bad') }
+  const s = tx(line); say(s); hideClue()
+  later(sayMin(s), () => { if (G.tb === t && t.state !== 'gone') then() })
 }
 function setMood(t, d) { t.mood = Math.max(0, Math.min(100, t.mood + d)); refreshBottle() }
-function silence() {
-  const t = G.tb; t.state = 'react'; setCards(t.choices, true); t.sil++; t.prev = 'bad'; setMood(t, NUM.SILENT); G.log.push(t.g.k + ':silent')
-  react(t, 'silence')
+const leaving = t => t.mood <= 0 || t.strikes >= 2 || t.sil >= 2
+function advance(grade) {
+  const t = G.tb; if (!t || t.state === 'gone') return
+  t.ex++
+  if (leaving(t) || t.kind === 'close') return leave()
+  if (t.ex >= NUM.MAXEX - 1) return present(t.g.close, 'close')
+  // 外したら1回だけ挽回の一歩へ。そのあとは話題を変える。当たれば同じ話題を深掘りする
+  if (grade === 'M' || grade === 'bored' || grade === 'silent') {
+    if (!t.rescued && t.kind !== 'rescue' && grade !== 'silent') { t.rescued = true; return present(t.g.rescue, 'rescue') }
+    return nextTopic()
+  }
+  if (t.kind === 'topic' && t.si + 1 < t.ti.length) { t.si++; return present(t.ti[t.si], 'topic') }
+  nextTopic()
 }
-function idCheck(t) {
+function nextTopic() {
+  const t = G.tb
+  if (!t.topics.length || t.ex >= NUM.MAXEX - 1) return present(t.g.close, 'close')
+  t.ti = t.topics.shift(); t.si = 0; present(t.ti[0], 'topic')
+}
+function silence() {
+  const t = G.tb; t.state = 'react'; setCards(t.choices, true); t.sil++; setMood(t, NUM.SILENT); G.log.push(t.g.k + ':silent')
+  const a = lineOf(t, 'silent'); react(t, Array.isArray(a) ? a[t.sil % a.length] : a, 'c', () => advance('silent'))
+}
+function idCheck(t, asReply) {
   t.checked = true; G.log.push(t.g.k + ':id')
   if (t.minor) {
-    G.minors++; const s = tx(t.g.idNG); say(s); t.reactFx = { kind: 'c', at: G.t }; setClue(L().minorSent)
-    t.mood = 0; later(Math.max(2, sayMin(s)), () => { if (G.tb === t) goneTable() })
+    G.minors++; t.state = 'react'; const s = tx(t.g.lines.idNG); say(s); t.reactFx = { kind: 'c', at: G.t, hold: true }; setClue(L().minorSent); setCards(t.choices, true); refreshBottle()
+    later(Math.max(2.2, sayMin(s)), () => { if (G.tb !== t) return; t.state = 'gone'; t.leaveAt = G.t; G.ended = 'catch'; later(0.8, () => { if (G.tb === t) goResult() }) })
   } else {
-    setMood(t, 20); t.reactFx = { kind: 'h', at: G.t }; const s = tx(t.g.idOK); say(s); Sfx('good')
-    later(sayMin(s), () => { if (G.tb === t && t.state === 'react') endTurn() })
+    setMood(t, NUM.ID_OK); Sfx('good'); t.state = 'react'; setCards(t.choices, true)
+    react(t, t.g.lines.idOK, 'h', () => asReply ? advance('H') : present(t.node, t.kind, true))
   }
   return true
 }
 
-// ---------- ボトル
-function offerBottle(n) {
-  const t = G.tb; if (G.mode !== 'play' || !t || t.state !== 'turn') return false
+// ---------- ボトル（安い順に1本ずつ）
+function offerBottle() {
+  const t = G.tb; if (G.mode !== 'play' || !t || t.state !== 'turn' || t.tier >= D.BOTTLE.length) return false
   closeMenu(); t.state = 'react'; setCards(t.choices, true); refreshBottle()
-  const b = D.BOTTLE[n]; G.log.push(`${t.g.k}:bottle${n}`)
-  if (t.senpai) return senpaiMad(t)
-  if (t.g.young && t.minor && !t.checked) return raid('minor')
-  // 楽しさを渡す前の「買って」は押し売り。必ず失敗する。2回で帰る
-  if (t.mood < b.need) { setMood(t, NUM.EARLY); t.early++; t.prev = 'bad'; if (t.early >= 2) t.mood = 0; react(t, 'early'); return true }
-  if (b.yen > t.walletYen - t.spent) { setMood(t, NUM.OVER); t.prev = 'bad'; react(t, 'over'); return true }
+  const n = t.tier, b = D.BOTTLE[n]; G.log.push(`${t.g.k}:bottle${n}`)
+  if (t.gag === 'young' && t.minor && !t.checked) return raid('minor')
+  // 楽しさを渡す前の「買って」と、財布を超える勧めは押し売り。2回で帰る
+  const push = line => { setMood(t, NUM.PUSH); t.strikes++; react(t, t.strikes >= 2 ? lineOf(t, 'early2') : line, 'c', () => leaving(t) ? leave() : present(t.node, t.kind, true)) }
+  if (t.mood < b.need) { push(lineOf(t, 'early')); return true }
+  // 財布を超える勧めは、その場で帰る（財布を見ていない）
+  if (b.yen > t.walletYen - t.spent) { t.offended = true; setMood(t, NUM.PUSH); react(t, lineOf(t, 'over'), 'c', () => leave()); return true }
   // 売れた
-  t.prev = null; t.spent += b.yen; t.sold++; G.sales += b.yen; G.bottles++; setMood(t, NUM.SOLD); updateHud()
-  if (t.g.mom) G.mom = true
+  t.spent += b.yen; t.tier++; G.bottles++; setMood(t, NUM.SOLD); updateHud()
+  if (t.gag === 'mom') G.mom = true
   t.reactFx = { kind: 'h', at: G.t }
-  const s = t.g.buy || D.REACT.buy[(t.turn + t.i) % 2]; say(tx(s))
-  later(0.8, () => { if (G.tb === t) champagneCall(n, t) })
+  const nb = D.BOTTLE[t.tier], end = !nb || t.spent + nb.yen > t.walletYen
+  const buy = lineOf(t, 'buy'), s = end && t.tier < D.BOTTLE.length ? lineOf(t, 'last') : buy[(G.bottles + t.ex) % buy.length]
+  t.said = end; say(tx(s)); hideClue()
+  later(Math.max(1.2, sayMin(tx(s)) * 0.7), () => { if (G.tb === t) champagneCall(n, t) })
   return true
 }
 function ura(kind) {
-  const t = G.tb; if (G.mode !== 'play' || !t || t.state !== 'turn' || t.g.young) return false
+  const t = G.tb; if (G.mode !== 'play' || !t || t.state !== 'turn') return false
   closeMenu(); t.state = 'react'; setCards(t.choices, true); refreshBottle(); G.log.push(`${t.g.k}:${kind}`)
   G.warns++
   if (G.warns >= 2) { raid(kind); return true }
-  if (t.g.k === 'x_tax') { raid('tax'); return true }
-  stopScene(kind === 'love' ? L().stopLove : L().stopTsuke, 's_naikin', `${L().stopFine} -${yen(NUM.WARN)}`, 'run', () => goneTable())
-  return true
-}
-function senpaiMad(t) {
-  G.fines++
-  stopScene(L().senpaiMad, 's_senpai', `${L().senpaiFine} -${yen(NUM.FINE)}`, 'bad', () => goneTable())
+  if (t.gag === 'tax') { raid('tax'); return true }
+  stopScene(kind === 'love' ? L().stopLove : L().stopTsuke, 's_naikin', `${L().stopFine} -${yen(NUM.WARN)}`, 'run', () => {
+    setMood(t, NUM.STOP); react(t, lineOf(t, 'afterStop'), 'c', () => leaving(t) ? leave() : present(t.node, t.kind, true))
+  })
   return true
 }
 function stopScene(line, img, fine, sfx, after) {
-  G.mode = 'stop'; hideBubble(); Sfx(sfx)
+  G.mode = 'stop'; hideBubble(); hideClue(); Sfx(sfx)
   $('#stopImg').src = 'img/' + img + '.webp' + V; const im = $('#stopImg'); im.classList.add('far'); requestAnimationFrame(() => im.classList.remove('far'))
   $('#stopLine').textContent = line; $('#stopFine').textContent = fine; $('#bStopOk').textContent = L().stopOk; $('#stop').hidden = false
   G.stopAfter = after
@@ -261,14 +208,17 @@ function raid(kind) {
 const fxc = $('#fx'), fx = fxc.getContext('2d')
 let confetti = []
 function burst(n) { const W = fxc.width, H = fxc.height, C = ['#f4dc9a', '#d9b45f', '#8c1f33', '#fff', '#d8352a']; for (let i = 0; i < n && confetti.length < 260; i++) confetti.push({ x: Math.random() * W, y: -20 - Math.random() * H * 0.5, vx: (Math.random() - .5) * 1.4, vy: 1.6 + Math.random() * 3.2, r: Math.random() * 6.28, vr: (Math.random() - .5) * .3, s: 5 + Math.random() * 9, c: C[(Math.random() * C.length) | 0] }) }
+const honName = t => tx(t.g.name) + tx(t.g.hon)
 function champagneCall(n, t) {
-  const b = D.BOTTLE[n], who = tx(t.g.name) + (t.g.title ? tx(t.g.title) : (lang === 'ja' ? '姫' : ''))
-  const pool = D.CALL.mid.slice(1), pick = pool[(G.seed + G.bottles * 3) % pool.length], pick2 = pool[(G.seed + G.bottles * 3 + 4) % pool.length]
-  const lines = [D.CALL.open[0], { ja: D.CALL.mid[0].ja.replace('{n}', who), en: D.CALL.mid[0].en.replace('{n}', who) }, pick]
-  if (n >= 1) lines.push(pick2)
-  if (n >= 2) lines.push(pool[(G.seed + G.bottles * 3 + 7) % pool.length])
+  const b = D.BOTTLE[n], who = honName(t)
+  const pool = D.CALL.mid.slice(1), k = G.seed + G.bottles * 3
+  const lines = n === 3 ? [D.CALL.tower[0], { ja: D.CALL.mid[0].ja.replace('{n}', who), en: D.CALL.mid[0].en.replace('{n}', who) }, D.CALL.tower[1], D.CALL.tower[2]]
+    : [D.CALL.open[0], { ja: D.CALL.mid[0].ja.replace('{n}', who), en: D.CALL.mid[0].en.replace('{n}', who) }, pool[k % pool.length]]
+  if (n === 1 || n === 2) lines.push(pool[(k + 4) % pool.length])
+  if (n === 2) lines.push(pool[(k + 7) % pool.length])
   lines.push(D.CALL.last[0])
-  runCall({ img: 'b' + (n + 1), sub: `+${yen(b.yen)}`, lines, big: n }, () => { if (G.tb === t) { t.state = 'react'; endTurn() } })
+  // コールのあとは同じ一言に戻る。滑った直後の「今の何？」だけは、乾杯で流れたことにして話題を変える
+  runCall({ img: b.i, sub: `+${yen(b.yen)}`, lines, big: n }, () => { if (G.tb !== t) return; if (t.kind === 'rescue') nextTopic(); else present(t.node, t.kind, true) })
   takeSnap(t, n)
 }
 function runCall(o, after) {
@@ -278,7 +228,7 @@ function runCall(o, after) {
   it.classList.remove('in'); crew.classList.remove('in', 'bob'); big.textContent = ''; $('#callSub').textContent = o.sub
   requestAnimationFrame(() => it.classList.add('in'))
   Sfx('sold'); Hype(true); G.flash = 1
-  const g = G.gen, callId = (G.callId = (G.callId || 0) + 1)
+  const callId = (G.callId = (G.callId || 0) + 1)
   later(0.35, () => { if (G.callId === callId) { crew.classList.add('in'); later(0.5, () => { if (G.callId === callId) crew.classList.add('bob') }) } })
   o.lines.forEach((l, i) => later(0.5 + i * 1.25, () => {
     if (G.callId !== callId || G.callDone) return
@@ -296,7 +246,6 @@ function drawFx() {
   if ($('#call').hidden) return
   const W = fxc.width, H = fxc.height; fx.clearRect(0, 0, W, H)
   const a = G.t - G.callAt
-  // 店の光。ゆっくり振れるスポットライト
   for (let i = 0; i < 5; i++) {
     const sw = Math.sin(a * (0.9 + i * .23) + i * 1.7), x = W * (0.1 + i * .2), tx0 = x + sw * W * 0.34
     const gr = fx.createLinearGradient(x, -10, tx0, H); gr.addColorStop(0, `rgba(255,220,140,${.34 - i * .02})`); gr.addColorStop(1, 'rgba(255,200,120,0)')
@@ -306,76 +255,49 @@ function drawFx() {
   for (const c of confetti) { fx.save(); fx.translate(c.x, c.y); fx.rotate(c.r); fx.fillStyle = c.c; fx.fillRect(-c.s / 2, -c.s / 4, c.s, c.s / 2); fx.restore() }
 }
 
-// ---------- 帰る
-function leaveTable() {
-  const t = G.tb, u = D.REACT
-  if (t.state === 'gone') return
-  t.state = 'gone'; setCards(null, true); refreshBottle()
-  let s
-  if (t.senpai) {
-    if (t.mood >= 50) { G.helps++; s = { ja: L().senpaiHelp, en: L().senpaiHelp }; t.leaveImg = 's_senpai' } else s = u.leaveOk[t.i % 2]
-    say(tx(s)); if (t.mood >= 50) { setClue(`${L().payHelp} +${yen(NUM.HELP)}`); Sfx('coins') }
-  } else {
-    const happy = t.mood >= NUM.NOMI && !t.bored
-    if (happy) { G.noms++; t.nomi = true; Sfx('card') }
-    s = t.g.leave || (happy ? u.leaveGood : t.mood < 25 ? u.leaveBad : u.leaveOk)[t.i % 2]
-    if (s && s.ja === undefined) s = s[0]
-    say(tx(s)); t.reactFx = { kind: happy ? 'h' : t.mood < 25 ? 'c' : 'n', at: G.t, hold: true }
-    if (happy) updateHud()
-  }
-  t.leaveAt = G.t + sayMin(tx(s)) - 0.5
-  later(sayMin(tx(s)), () => { if (G.tb === t) nextTable() })
+// ---------- お帰り
+function leave() {
+  const t = G.tb; if (!t || t.state === 'gone') return
+  t.state = 'gone'; setCards(null, true); refreshBottle(); hideClue()
+  t.happy = t.mood >= NUM.HAPPY && !t.offended
+  const s = tx(lineOf(t, t.happy ? 'good' : t.mood < 25 || t.offended ? 'bad' : 'ok'))
+  say(s); t.reactFx = { kind: t.happy ? 'h' : t.mood < 25 || t.offended ? 'c' : 'n', at: G.t, hold: true }
+  // 楽しく帰る客は、次も指名すると言って指名料を払っていく
+  if (t.happy) { t.spent += NUM.NOMI_FEE; updateHud(); setClue(`${L().nomiFee} +${yen(NUM.NOMI_FEE)}`); Sfx('coins') }
+  t.leaveAt = G.t + sayMin(s) - 0.4
+  later(sayMin(s) + 0.3, () => { if (G.tb === t) goResult() })
 }
-function goneTable() {
-  const t = G.tb; if (!t) return nextTable()
-  t.state = 'gone'; t.leaveAt = G.t; setCards(null, true); hideBubble(); later(0.8, () => { if (G.tb === t) nextTable() })
-}
-
-// ---------- 閉店: 指名客が戻ってくる
-function closing() {
-  G.mode = 'closing'; setCards(null); hideClue()
-  if (!G.noms) return later(0.1, () => goResult())
-  const add = G.noms * NUM.NOMI_BACK
-  G.sales += add; G.bottles += G.noms; updateHud()
-  G.bossVis = { img: 's_boss', at: G.t }; say(L().nomiBack(G.noms), 'boss'); Sfx('coins')
-  later(2.2, () => {
-    hideBubble(); G.bossVis = null
-    if (G.noms >= NUM.TOWER_NEED) {
-      G.sales += NUM.TOWER; G.tower = true; updateHud()
-      const lines = D.CALL.tower
-      runCall({ img: 'tower', sub: `+${yen(NUM.TOWER)}`, lines, big: 3 }, () => goResult())
-      takeSnap(null, 3)
-    } else goResult()
-  })
-}
-function rankOf(sales) { for (const [v, k] of RANK) if (sales >= v) return k; return 'zero' }
-function goResult() {
-  G.ended = G.ended || 'close'; window.TM && TM.end(G.sales, true); result()
-}
+function goResult() { G.ended = G.ended || 'close'; window.TM && TM.end(G.tb ? G.tb.spent : 0, true); result() }
 
 // ---------- 結果
+function rankOf(t) {
+  if (G.ended === 'raid') return 'raid'
+  if (G.ended === 'catch') return 'catch'
+  const A = affordable(t), n = t.tier
+  if (!n) return 'zero'
+  if (n >= A) return t.happy ? 'legend' : 'top'
+  return n >= A - 1 ? 'mid' : 'low'
+}
 function buildSlip() {
-  const u = L(), raided = G.ended === 'raid', rk = raided ? 'raid' : rankOf(G.sales)
+  const u = L(), t = G.tb, raided = G.ended === 'raid', rk = rankOf(t), who = honName(t)
   const pay = [], ded = []
-  pay.push({ label: u.payComm, note: u.note(G.sales), yen: raided ? 0 : Math.round(G.sales * NUM.COMM) })
-  if (G.noms) pay.push({ label: u.payNomi, note: `${G.noms}${u.unitN}`, yen: raided ? 0 : G.noms * 3000 })
-  if (G.bottles) pay.push({ label: u.payBottle, note: `${G.bottles}${u.unitN}`, yen: raided ? 0 : G.bottles * 1000 })
-  if (G.helps) pay.push({ label: u.payHelp, note: `${G.helps}${u.unitT}`, yen: NUM.HELP * G.helps })
+  pay.push({ label: u.payComm, note: u.note(who, t.spent), yen: raided ? 0 : Math.round(t.spent * NUM.COMM) })
+  if (t.happy && !raided) pay.push({ label: u.payNomi, note: `1${u.unitN}`, yen: NUM.NOMI })
+  if (G.bottles) pay.push({ label: u.payBottle, note: `${G.bottles}${u.unitN}`, yen: raided ? 0 : G.bottles * NUM.PER_BOTTLE })
   if (G.minors) pay.push({ label: u.payMinor, note: `${G.minors}${u.unitP}`, yen: NUM.MINOR * G.minors })
-  if (G.fines) ded.push({ label: u.dedFine, note: `${G.fines}${u.unitT}`, yen: NUM.FINE * G.fines })
   if (G.warns && !raided) ded.push({ label: u.dedWarn, note: `${G.warns}${u.unitT}`, yen: NUM.WARN * G.warns })
   if (raided) ded.push({ label: u.dedRaid, note: '', yen: NUM.RAID })
-  const hours = raided ? Math.max(0.5, (G.idx + 1)) : 5
+  const hours = Math.max(1, Math.ceil(t.ex / 3))
   let comment = u.comments[rk]; if (G.mom && !raided) comment = u.comments.mom
-  return { lang, no: 5, job: u.job, date: '2026.11.07', wage: 1200, hours, pay, ded, boss: u.boss, comment: `${u.rankName[rk]}。${comment}`, stamp: u.ranks[rk], stampK: 0, photo: G.snap, footer: u.footer, name: u.name, rk }
+  return { lang, no: 5, job: u.job, date: '2026.11.07', wage: 1200, hours, pay, ded, boss: u.boss, comment: `${u.rankName[rk]}。${comment}`, stamp: u.ranks[rk], stampK: 0, photo: G.snap, footer: u.footer, name: u.name, rk, who, spent: t.spent }
 }
 function result() {
-  hideAll(); G.mode = 'end'; G.tb = null; setCards(null); const d = buildSlip(); G.result = d; G.total = totals(d)
-  show('vEnd'); fitSlip(); $('#endLabel').textContent = L().sales; $('#endSales').textContent = yen(0); $('#bAgain').disabled = true; $('#bSave').disabled = true; $('#bPost').disabled = true
+  hideAll(); G.mode = 'end'; setCards(null); const d = buildSlip(); G.result = d; G.total = totals(d)
+  show('vEnd'); fitSlip(); $('#endLabel').textContent = L().spent(d.who); $('#endSales').textContent = yen(0); $('#bAgain').disabled = true; $('#bSave').disabled = true; $('#bPost').disabled = true
   drawSlip(0)
-  const c0 = G.t, id = (G.resId = (G.resId || 0) + 1); G.count = { from: 0, to: G.sales, at: c0, dur: 1.6, id }
+  const id = (G.resId = (G.resId || 0) + 1); G.count = { from: 0, to: d.spent, at: G.t, dur: 1.6, id }
   Sfx('coins')
-  later(1.9, () => { if (G.resId !== id) return; G.stampAt = G.t; Sfx('stamp'); Sfx(d.rk === 'raid' || d.rk === 'zero' ? 'lose' : d.rk === 'low' ? 'lose' : d.rk === 'mid' ? 'win2' : 'win'); $('#bAgain').disabled = false; $('#bSave').disabled = false; $('#bPost').disabled = false })
+  later(1.9, () => { if (G.resId !== id) return; G.stampAt = G.t; Sfx('stamp'); Sfx(d.rk === 'raid' || d.rk === 'zero' || d.rk === 'low' ? 'lose' : d.rk === 'mid' || d.rk === 'catch' ? 'win2' : 'win'); $('#bAgain').disabled = false; $('#bSave').disabled = false; $('#bPost').disabled = false })
 }
 function drawSlip(k) { const d = G.result; if (!d) return; d.stampK = k; drawPayslip($('#slip'), d, { main: '#5a1020', dark: '#1c0a0e', accent: '#d9b45f', bg: '#120b0d' }) }
 function fitSlip() {
@@ -386,40 +308,49 @@ function takeSnap(t, n) {
   const c = document.createElement('canvas'); c.width = c.height = 640; const x = c.getContext('2d'), s = 640 / 800
   drawScene(x, s, 320 - 768 * s, 640 - 880 * s, { forceFace: 'h', noGlass: true })
   const crew = IMG.crew; if (crew) { const w = 760, h = w * crew.height / crew.width; x.drawImage(crew, -60, 640 - h * .72, w, h) }
-  const b = IMG[t ? 'b' + (n + 1) : 'tower']; if (b) { const h = 300, w = h * b.width / b.height; x.drawImage(b, 320 - w / 2, 150, w, h) }
+  const b = IMG[D.BOTTLE[n].i]; if (b) { const h = 300, w = h * b.width / b.height; x.drawImage(b, 320 - w / 2, 150, w, h) }
   G.snap = c
 }
 
 // ---------- 文字とボタン
 function say(s, cls = '') { const b = $('#bubble'); b.textContent = s; b.className = cls; b.hidden = false; layout() }
 function hideBubble() { $('#bubble').hidden = true }
-function setClue(s, cls = '') { const c = $('#clue'); c.textContent = s; c.className = cls; c.hidden = false; G.clueAt = G.t }
+function setClue(s, cls = '') { const c = $('#clue'); c.textContent = s; c.className = cls; c.hidden = false; layout() }
 function hideClue() { $('#clue').hidden = true }
-function tip(s) { say(s, 'boss'); store.set('jh_tut', '1') }
 function setCards(list, off) {
   const box = $('#cards')
-  if (!list) { for (const b of box.children) { b.textContent = ' '; b.disabled = true; b.className = 'card' } if (!box.children.length) mk(); return }
   if (!box.children.length) mk()
-  ;[...box.children].forEach((b, i) => { const c = list[i]; b.textContent = c ? tx(c.text) : ' '; b.disabled = !!off || !c; b.className = 'card' + (c && c.tag === 'id' ? ' id' : '') })
-  function mk() { for (let i = 0; i < 3; i++) { const b = document.createElement('button'); b.className = 'card'; b.textContent = ' '; b.disabled = true; b.addEventListener('click', () => { Snd.init(); Sfx('card'); choose(i) }); box.appendChild(b) } }
+  if (!list) { for (const b of box.children) { b.textContent = ' '; b.disabled = true; b.className = 'card' } return layout() }
+  ;[...box.children].forEach((b, i) => { const c = list[i]; b.textContent = c ? tx(c.t) : ' '; b.disabled = !!off || !c; b.className = 'card' })
+  function mk() { for (let i = 0; i < 3; i++) { const b = document.createElement('button'); b.className = 'card'; b.textContent = ' '; b.disabled = true; b.addEventListener('click', () => { Snd.init(); Sfx('card'); choose(i) }); box.appendChild(b) } }
   layout()
 }
 function refreshBottle() {
-  const t = G.tb, on = !!(t && t.state === 'turn'), b = $('#bBottle')
+  const t = G.tb, on = !!(t && t.state === 'turn' && G.mode === 'play' && t.tier < D.BOTTLE.length), b = $('#bBottle')
   b.disabled = !on
-  b.classList.toggle('ready', !!(t && on && t.mood >= D.BOTTLE[0].need && !t.senpai))
+  b.classList.toggle('ready', !!(on && bottleReady(t)))
 }
 function updateHud() {
-  const u = L(); $('#hSales').textContent = yen(G.sales)
-  $('#hTable').textContent = `${u.table} ${Math.min(G.idx + 1, G.night.length) || 1}/${G.night.length || 5}`
-  const m = 19 * 60 + Math.max(0, G.idx) * 60; $('#hClock').textContent = `${String(Math.floor(m / 60)).padStart(2, '0')}:00`
-  $('#hNoms').textContent = `${u.noms} ${G.noms}`
+  const u = L(), t = G.tb
+  $('#hSales').textContent = yen(t ? t.spent : 0)
+  $('#hTable').textContent = t ? honName(t) : ''
+  const m = 20 * 60 + (t ? t.ex : 0) * 20; $('#hClock').textContent = `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+  $('#hNoms').textContent = u.bottlesHud(G.bottles || 0)
 }
 function openMenu() {
   const t = G.tb; if (G.mode !== 'play' || !t || t.state !== 'turn') return
   Sfx('card'); G.menuOpen = true; const u = L(), box = $('#mItems'); box.innerHTML = ''
-  D.BOTTLE.forEach((b, i) => { const e = document.createElement('button'); e.className = 'mi'; e.innerHTML = `<img src="img/${b.i}.webp${V}" alt=""><span></span><b></b>`; e.querySelector('span').textContent = tx(b.n); e.querySelector('b').textContent = yen(b.yen); e.addEventListener('click', () => offerBottle(i)); box.appendChild(e) })
-  $('#ura').hidden = !!t.g.young; $('#uraT').textContent = u.ura
+  const note = document.createElement('small'); note.className = 'mnote'; note.textContent = u.locked; box.appendChild(note)
+  if (t.gag === 'young' && !t.checked) { const e = document.createElement('button'); e.className = 'mi idb'; e.id = 'mId'; e.innerHTML = '<span></span>'; e.querySelector('span').textContent = u.idcheck; e.addEventListener('click', () => { closeMenu(); idCheck(t, false) }); box.appendChild(e) }
+  D.BOTTLE.forEach((b, i) => {
+    const e = document.createElement('button'); e.className = 'mi' + (i < t.tier ? ' sold' : i > t.tier ? ' lock' : ' next')
+    e.innerHTML = `<img src="img/${b.i}.webp${V}" alt=""><span></span><b></b>`
+    e.querySelector('span').textContent = tx(b.n)
+    e.querySelector('b').textContent = i < t.tier ? u.sold : yen(b.yen)
+    e.disabled = i !== t.tier
+    e.addEventListener('click', () => offerBottle()); box.appendChild(e)
+  })
+  $('#ura').hidden = false; $('#uraT').textContent = u.ura
   const a = $('#mLove'), c = $('#mTsuke'); a.querySelector('span').textContent = u.love; a.querySelector('b').textContent = yen(u.loveYen); c.querySelector('span').textContent = u.tsuke; c.querySelector('b').textContent = yen(u.tsukeYen)
   $('#mTitle').textContent = u.menu; $('#mBack').textContent = u.back; $('#menu').hidden = false
 }
@@ -433,8 +364,9 @@ function applyLang() {
   $('#bSayNext').textContent = u.next; $('#bSaySkip').textContent = u.skip; $('#bSave').textContent = u.save; $('#bPost').textContent = u.post; $('#bAgain').textContent = u.again; $('#bTitle').textContent = u.toTitle
   buildHow(); updateHud()
   if (G.mode === 'intro') { $('#sayNm').textContent = u.boss; sayLine() }
-  if (G.tb && G.tb.state === 'turn') { setCards(G.tb.choices); }
-  if (G.mode === 'end' && G.result) { const k = G.result.stampK; G.result = { ...buildSlip(), stampK: k }; drawSlip(k); $('#endLabel').textContent = u.sales }
+  const t = G.tb
+  if (t && t.state === 'turn' && G.mode === 'play') present(t.node, t.kind, true)
+  if (G.mode === 'end' && G.result) { const k = G.result.stampK; G.result = { ...buildSlip(), stampK: k }; drawSlip(k); $('#endLabel').textContent = u.spent(G.result.who) }
 }
 
 // ---------- 描画
@@ -484,21 +416,19 @@ function drawScene(x, s, ox, oy, o = {}) {
   const t = G.tb
   let personImg = null, a = 0, dx = 0, dy = 0
   if (!$('#vTitle').hidden) { personImg = IMG.s_senpai; a = 1 }
-  else if (G.bossVis) { personImg = IMG[G.bossVis.img]; a = ease((G.t - G.bossVis.at) / .25) }
   else if (t && t.state !== 'wait') {
     const tin = ease((G.t - t.enterAt) / .6), tout = t.leaveAt != null ? ease((G.t - t.leaveAt) / .5) : 0
     a = tin * (1 - tout); dy = (1 - tin) * 26 + tout * 18 + Math.sin(G.t * 1.5) * 2.5
     if (t.shake != null && G.t - t.shake < .5) { const k = 1 - (G.t - t.shake) / .5; dx = Math.sin(G.t * 70) * 10 * k }
-    const f = t.leaveImg && t.state === 'gone' ? t.leaveImg : faceOf(t, o.forceFace); personImg = IMG[f] || IMG[t.g.k]
+    personImg = IMG[faceOf(t, o.forceFace)] || IMG[t.g.k]
   }
-  if (personImg && a > 0.002) { x.globalAlpha = a; G.leanK = G.leanK == null ? 1 : G.leanK; const lk = G.bossVis || !t ? 1 : 0.93 + 0.13 * t.mood / 100; G.leanK += (lk - G.leanK) * 0.08; const w = IW * CS * G.leanK, h = IH * CS * G.leanK; x.drawImage(personImg, 768 - w / 2 + dx, CY + 26 - 1136 * CS * G.leanK + dy, w, h); x.globalAlpha = 1 }
+  if (personImg && a > 0.002) { x.globalAlpha = a; G.leanK = G.leanK == null ? 1 : G.leanK; const lk = !t || !$('#vTitle').hidden ? 1 : 0.93 + 0.13 * t.mood / 100; G.leanK += (lk - G.leanK) * 0.08; const w = IW * CS * G.leanK, h = IH * CS * G.leanK; x.drawImage(personImg, 768 - w / 2 + dx, CY + 26 - 1136 * CS * G.leanK + dy, w, h); x.globalAlpha = 1 }
   // テーブルを人物の手前に描き直す
   if (bg) x.drawImage(bg, 0, CY, SW, SH - CY, 0, CY, SW, SH - CY)
-  if (t && t.state !== 'wait' && !G.bossVis && a > .02) {
+  if (t && t.state !== 'wait' && $('#vTitle').hidden && a > .02) {
     x.globalAlpha = a
     if (t.item) drawItem(x, t.item.i, 575, 900, 112)
-    if (t.senpai) drawItem(x, 'senpai', 770, 930, 72)
-    else if (t.walletItem) drawItem(x, t.walletItem.i, 770, 930, 90)
+    if (t.walletItem) drawItem(x, t.walletItem.i, 770, 930, 90)
     if (!o.noGlass) drawGlass(x, 985, 925, 210, t.mood)
     x.globalAlpha = 1
   }
@@ -552,14 +482,14 @@ function bind() {
   on('#bSave', () => { window.TM && TM.share('save'); $('#slip').toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'job-host.png'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 3000) }) })
   on('#bPost', () => {
     window.TM && TM.share('x'); const u = L(), r = G.result
-    const text = u.shareText(G.sales, G.bottles, u.rankName[r.rk])
+    const text = u.shareText(r.who, r.spent, G.bottles, u.rankName[r.rk])
     open('https://x.com/intent/post?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent('https://tom3games.github.io/job-host/'), '_blank')
   })
-  // 卓の持ち物を押すと、もう一度しぐさを読める
+  // 卓の持ち物を押すと、もう一度その持ち物の様子を読める
   cv.addEventListener('pointerdown', e => {
-    const t = G.tb; if (G.mode !== 'play' || !t || t.state !== 'turn' || !t.item) return
+    const t = G.tb; if (G.mode !== 'play' || !t || t.state !== 'turn') return
     const { s, ox, oy } = VIEW, X = (e.clientX - ox) / s, Y = (e.clientY - oy) / s
-    if (Y > 780 && Y < 960 && Math.abs(X - 575) < 90) setClue(tx(t.item)); else if (t.walletItem && Y > 780 && Y < 960 && Math.abs(X - 770) < 90) setClue(tx(t.walletItem))
+    if (Y > 780 && Y < 960 && Math.abs(X - 575) < 90) setClue(tx(t.g.itemClue)); else if (t.walletItem && Y > 780 && Y < 960 && Math.abs(X - 770) < 90) setClue(tx(t.walletItem))
   })
   window.addEventListener('resize', resize)
   document.addEventListener('click', e => { if (e.target && e.target.id === 'tmSupport') window.TM && TM.support() })
@@ -568,10 +498,19 @@ function muteIcon() { $('#icoSnd').style.opacity = Snd.muted ? .35 : 1; $('#bMut
 
 // ---------- 検証の窓口
 window.HC = {
-  G, D, NUM, Snd, buildNight, choose, offerBottle, ura, openMenu, closeMenu, callEnd, stopOk, result, rankOf, IMG, drawScene,
+  G, D, T, NUM, Snd, buildPlay, choose, offerBottle, ura, openMenu, closeMenu, callEnd, stopOk, result, rankOf, affordable, IMG, drawScene,
   start: (seed, o) => startNight(seed, o),
-  state: () => { const t = G.tb; return { mode: G.mode, idx: G.idx, phase: t ? t.state : null, turn: t ? t.turn : 0, mood: t ? t.mood : null, k: t ? t.g.k : null, gag: t ? t.gag || null : null, senpai: !!(t && t.senpai), clueKey: t ? t.clue0.i : null, forms: t && t.choices ? t.choices.map(c => c.form) : [], att: t ? attKey(t.mood) : null, prev: t ? t.prev : null, texts: t && t.choices ? t.choices.map(c => c.text.ja) : [], used: t ? [...t.used] : [], helloTag: t ? t.helloTag : null, checked: !!(t && t.checked), young: !!(t && t.g.young), itemKey: t && t.item ? t.item.i : null, gestureKey: t ? t.gesture.k : null, walletKey: t && t.walletItem ? t.walletItem.i : null, choices: t && t.choices ? t.choices.map(c => c.tag) : [], sales: G.sales, noms: G.noms, bottles: G.bottles, ended: G.ended, warns: G.warns, fines: G.fines, helps: G.helps, minors: G.minors, bubble: $('#bubble').hidden ? null : $('#bubble').textContent, clue: $('#clue').hidden ? null : $('#clue').textContent, rk: G.result ? G.result.rk : null, net: G.total ? G.total.net : null } },
-  dbg: { jump: i => { G.tasks = []; G.bossVis = null; G.mode = 'play'; G.idx = i - 1; G.tb = null; hideAll(); nextTable() }, pause: p => { paused = p }, step: n => { for (let i = 0; i < n; i++) step(1 / 60); render() }, render },
+  checkId: () => { const t = G.tb; if (G.mode !== 'play' || !t || t.state !== 'turn' || t.gag !== 'young' || t.checked) return false; t.state = 'react'; return idCheck(t, false) },
+  // 画面に出ている物だけを返す（読むbotはここしか見ない）。grades は「当たり以外を選ぶ」bot だけが使う
+  state: () => {
+    const t = G.tb, c = t && t.choices, n = t && t.node
+    const cue = n && n.c && n.w ? n.w : t ? T.ITEM_WANT[t.g.item] : null
+    return { mode: G.mode, phase: t ? t.state : null, kind: t ? t.kind : null, ex: t ? t.ex : 0, mood: t ? t.mood : null, k: t ? t.g.k : null, gag: t ? t.gag : null, att: t ? attKey(t.mood) : null, ready: !!(t && bottleReady(t)), tier: t ? t.tier : 0, cue, walletKey: t && t.walletItem ? t.walletItem.i : null, items: t ? [t.item.i, t.walletItem && t.walletItem.i].filter(Boolean) : [], said: !!(t && t.said), netaUsed: !!(t && t.netaUsed), checked: !!(t && t.checked), young: !!(t && t.gag === 'young'),
+      line: n ? n.s.ja : null, styles: c ? c.map(o => o.st) : [], grades: c ? c.map(o => o.g) : [], texts: c ? c.map(o => o.t.ja) : [], cards: [...document.querySelectorAll('#cards .card')].map(b => b.textContent),
+      sales: t ? t.spent : 0, bottles: G.bottles, ended: G.ended, warns: G.warns, minors: G.minors, strikes: t ? t.strikes : 0, happy: !!(t && t.happy),
+      bubble: $('#bubble').hidden ? null : $('#bubble').textContent, clue: $('#clue').hidden ? null : $('#clue').textContent, rk: G.result ? G.result.rk : null, net: G.total ? G.total.net : null }
+  },
+  dbg: { pause: p => { paused = p }, step: n => { for (let i = 0; i < n; i++) step(1 / 60); render() }, render },
   setLang: l => { lang = l; applyLang() },
 }
 

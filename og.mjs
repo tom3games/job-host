@@ -10,8 +10,8 @@ const p = await ctx.newPage()
 await p.goto(`http://localhost:${PORT}/`); await p.waitForFunction(() => window.__hcReady); await p.evaluate(() => document.fonts.ready); await p.waitForTimeout(800)
 await p.evaluate(() => {
   document.querySelector('#loading').style.display = 'none'
-  HC.dbg.pause(true); HC.start(1, { skipIntro: true }); for (let i = 0; i < 12; i++) HC.dbg.step(10)
-  const t = HC.G.tb; t.senpai = false; t.g = HC.D.REG[1]; t.mood = 95; t.walletYen = 500000; HC.offerBottle(2); HC.dbg.step(60)
+  HC.dbg.pause(true); HC.start(1, { skipIntro: true, guest: 'g2' }); for (let i = 0; i < 12; i++) HC.dbg.step(10)
+  const t = HC.G.tb; t.mood = 95; t.tier = 2; HC.offerBottle(); HC.dbg.step(90)
   for (let i = 0; i < 4; i++) HC.dbg.step(40)
 })
 await p.waitForTimeout(700)
@@ -23,7 +23,7 @@ await p.evaluate(() => {
   const d = document.createElement('div'); d.style.cssText = 'position:fixed;right:0;width:640px;top:30px;z-index:90;text-align:center;font-family:"Zen Antique",serif;color:#fff4d6'
   d.innerHTML = `<div style="font-family:'Zen Kaku Gothic New';font-weight:700;font-size:22px;letter-spacing:.14em;color:#d9b45f">1日だけ職場体験 #5</div><div style="font-size:82px;line-height:1.1;text-shadow:0 0 2px #fff,0 0 14px rgba(255,190,90,.95),0 0 38px rgba(255,120,60,.6)">一晩だけホスト</div>`
   document.body.appendChild(d)
-  const f = document.createElement('div'); f.style.cssText = "position:fixed;right:0;width:640px;bottom:32px;z-index:90;text-align:center;font-family:'Zen Old Mincho',serif;font-weight:900;font-size:30px;color:#f4dc9a;text-shadow:0 2px 6px #000"; f.textContent = '手元を読め。色恋に走ると営業停止。'; document.body.appendChild(f)
+  const f = document.createElement('div'); f.style.cssText = "position:fixed;right:0;width:640px;bottom:32px;z-index:90;text-align:center;font-family:'Zen Old Mincho',serif;font-weight:900;font-size:30px;color:#f4dc9a;text-shadow:0 2px 6px #000"; f.textContent = '1人の客に、いくら使わせる？'; document.body.appendChild(f)
   HC.dbg.step(1)
 })
 await p.waitForTimeout(300)
