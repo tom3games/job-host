@@ -2,7 +2,7 @@
 // v3: 客の本音（聞く・笑い・褒め・気遣い・そっと）は毎回くじ。台詞は客同士で共通なので、当たりは卓の持ち物としぐさを読まないと分からない
 //     返事には制限時間（グラスの泡が消えるまで）。会話の途中にくじで事件が割り込む
 // 描画は Canvas 2D、時間は固定60Hz（performance.now で数える）
-import { drawPayslip, totals } from './payslip.js?v=5'
+import { drawPayslip, totals } from './payslip.js?v=7'
 window.__jsUp = true
 const D = window.HD, T = window.HT
 const $ = s => document.querySelector(s)
@@ -24,7 +24,7 @@ export const NUM = {
 }
 
 // ---------- 画像
-const V = '?v=5'
+const V = '?v=7'
 const IMG = {}
 const ITEMS = ['mirror', 'lipstick', 'brooch', 'medicine', 'phone', 'papers', 'fish', 'nose', 'ticket', 'book', 'earbuds', 'readers', 'ledger', 'cards', 'coupons', 'pass']
 // 最初の画面に要る物だけ待つ。コールの絵や事件の人物は準備完了のあと裏で読む
