@@ -52,7 +52,7 @@ button{font-family:inherit;color:inherit;font-size:inherit;border:0;background:n
 #corner svg{width:20px;height:20px;fill:currentColor}
 
 /* ---- タイトル: 看板 ---- */
-#vTitle{display:flex;flex-direction:column;justify-content:space-between;padding:max(58px,calc(env(safe-area-inset-top) + 50px)) 18px max(20px,calc(env(safe-area-inset-bottom) + 14px));background:linear-gradient(180deg,rgba(8,4,5,.72),rgba(8,4,5,.06) 40%,rgba(8,4,5,.1) 66%,rgba(8,4,5,.94) 84%)}
+#vTitle{display:flex;flex-direction:column;justify-content:space-between;padding:max(58px,calc(env(safe-area-inset-top) + 50px)) 18px max(20px,calc(calc(env(safe-area-inset-bottom) + var(--inapp-bot,0px)) + 14px));background:linear-gradient(180deg,rgba(8,4,5,.72),rgba(8,4,5,.06) 40%,rgba(8,4,5,.1) 66%,rgba(8,4,5,.94) 84%)}
 .sign{align-self:flex-start;transform:rotate(-1.6deg);transform-origin:left top}
 .sign .ser{font-family:var(--sans);font-weight:700;font-size:13px;color:var(--gold);letter-spacing:.12em;margin-bottom:8px}
 .sign h1{font-family:var(--sign);font-weight:400;font-size:min(17vw,9.4vh,72px);line-height:1.02;color:#fff4d6;text-shadow:0 0 2px #fff,0 0 12px rgba(255,190,90,.95),0 0 34px rgba(255,120,60,.6)}
@@ -75,7 +75,7 @@ button{font-family:inherit;color:inherit;font-size:inherit;border:0;background:n
 #clue.tip{color:#fff;background:linear-gradient(90deg,#8c1f33,rgba(140,31,51,.6))}
 #clue.tr{color:#fff;background:linear-gradient(90deg,#1c3a5a,rgba(28,58,90,.6));font-family:var(--sans)}
 #bubble.them{background:#1a1214;color:var(--gold-hi);border:1px solid var(--gold-dk);border-radius:16px 4px 16px 16px}
-#hand{position:fixed;z-index:30;left:0;right:0;bottom:0;padding:8px 12px max(10px,calc(env(safe-area-inset-bottom) + 6px));background:#120b0d;display:flex;flex-direction:column;gap:6px}
+#hand{position:fixed;z-index:30;left:0;right:0;bottom:0;padding:8px 12px max(10px,calc(calc(env(safe-area-inset-bottom) + var(--inapp-bot,0px)) + 6px));background:#120b0d;display:flex;flex-direction:column;gap:6px}
 /* 会話は名刺 */
 .card{display:flex;align-items:center;min-height:52px;width:100%;padding:0 14px;text-align:left;font-family:var(--min);font-weight:700;font-size:clamp(15px,4.2vw,18px);line-height:1.2;color:#f5ead0;background:#1c1416;outline:1px solid var(--gold-dk);outline-offset:-4px;transition:transform .08s,opacity .15s}
 .card:nth-child(1){transform:rotate(-.5deg)}
@@ -96,7 +96,7 @@ button{font-family:inherit;color:inherit;font-size:inherit;border:0;background:n
 #bBottle img{height:38px;width:auto}
 
 /* ---- メニュー: 革表紙 ---- */
-.ovl{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));background:rgba(4,2,3,.72)}
+.ovl{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,calc(env(safe-area-inset-bottom) + var(--inapp-bot,0px)));background:rgba(4,2,3,.72)}
 #menuBook{width:min(400px,100%);background:#2a120f;background-image:radial-gradient(120% 90% at 30% 10%,#46201a,#1c0b09);padding:14px;transform:rotate(.6deg);display:flex;flex-direction:column;gap:6px}
 #menuBook h3{font-family:var(--sign);font-weight:400;font-size:19px;color:var(--gold);text-align:center;letter-spacing:.2em;margin-bottom:2px}
 .mi{display:flex;align-items:center;gap:8px;min-height:64px;width:100%;padding:4px 10px;text-align:left;border-bottom:1px solid rgba(217,180,95,.28)}
@@ -132,7 +132,7 @@ button{font-family:inherit;color:inherit;font-size:inherit;border:0;background:n
 #callSub{position:absolute;left:16px;right:120px;top:calc(env(safe-area-inset-top) + 16px);display:flex;justify-content:flex-start;font-family:'Dela Gothic One',var(--sans);font-size:22px;color:var(--gold-hi);text-shadow:0 2px 0 #000}
 
 /* ---- 内勤が止めに来る ---- */
-#stop{background:rgba(4,2,3,.96);justify-content:flex-end;padding-bottom:max(18px,calc(env(safe-area-inset-bottom) + 12px))}
+#stop{background:rgba(4,2,3,.96);justify-content:flex-end;padding-bottom:max(18px,calc(calc(env(safe-area-inset-bottom) + var(--inapp-bot,0px)) + 12px))}
 #stopImg{position:absolute;left:50%;bottom:150px;height:min(66vh,560px);transform:translateX(-50%);transition:transform .2s}
 #stopImg.far{transform:translateX(120%) rotate(8deg)}
 #stopLine{position:relative;width:min(420px,100%);background:#d8352a;color:#fff;font-weight:900;font-size:clamp(19px,5.4vw,24px);line-height:1.35;padding:12px 16px;transform:rotate(-1.2deg)}
@@ -148,7 +148,7 @@ button{font-family:inherit;color:inherit;font-size:inherit;border:0;background:n
 #bRaid{position:relative;min-height:50px;padding:0 26px;background:var(--paper);color:var(--ink);font-weight:900;font-size:16px}
 
 /* ---- 店長 ---- */
-#say{background:linear-gradient(180deg,transparent 45%,rgba(4,2,3,.9));justify-content:flex-end;padding-bottom:max(18px,calc(env(safe-area-inset-bottom) + 12px))}
+#say{background:linear-gradient(180deg,transparent 45%,rgba(4,2,3,.9));justify-content:flex-end;padding-bottom:max(18px,calc(calc(env(safe-area-inset-bottom) + var(--inapp-bot,0px)) + 12px))}
 #sayImg{position:absolute;left:50%;bottom:150px;height:min(62vh,540px);transform:translateX(-50%)}
 #sayBox{position:relative;width:min(440px,100%);background:#120b0d;border-top:2px solid var(--gold);padding:10px 14px 12px}
 #sayBox b{font-size:12px;color:var(--gold);letter-spacing:.1em}
@@ -169,7 +169,7 @@ button{font-family:inherit;color:inherit;font-size:inherit;border:0;background:n
 #howBtn{min-height:48px;width:min(320px,100%);margin-top:10px;background:#1c1416;outline:1px solid var(--gold-dk);outline-offset:-4px;font-weight:900;color:#f5ead0}
 
 /* ---- 結果 ---- */
-#vEnd{display:flex;flex-direction:column;align-items:center;gap:6px;padding:max(8px,env(safe-area-inset-top)) 12px max(8px,calc(env(safe-area-inset-bottom) + 4px));background:#0b0708}
+#vEnd{display:flex;flex-direction:column;align-items:center;gap:6px;padding:max(8px,env(safe-area-inset-top)) 12px max(8px,calc(calc(env(safe-area-inset-bottom) + var(--inapp-bot,0px)) + 4px));background:#0b0708}
 #endHead{display:flex;align-items:baseline;justify-content:center;gap:10px;min-height:36px;margin-right:96px;font-family:'Dela Gothic One',var(--sans);color:var(--gold-hi);white-space:nowrap}
 #endHead small{font-family:var(--sans);font-weight:700;font-size:12px;color:var(--dim)}
 #endHead b{font-weight:400;font-size:clamp(21px,6vw,28px);font-variant-numeric:tabular-nums}
@@ -258,6 +258,6 @@ button{font-family:inherit;color:inherit;font-size:inherit;border:0;background:n
 <script src="data.js?v=8"></script>
 <script src="talk.js?v=8"></script>
 <script type="module" src="game.js?v=8"></script>
-<script src="support.js?v=8" data-ja="シャンパン" data-en="champagne"></script>
+<script src="support.js?v=9" data-ja="シャンパン" data-en="champagne"></script>
 </body>
 </html>
